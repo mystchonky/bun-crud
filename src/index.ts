@@ -1,5 +1,6 @@
 import { Elysia } from "elysia";
 import oauth2, { google } from "@bogeychan/elysia-oauth2";
+import { swagger } from "@elysiajs/swagger";
 
 import { randomBytes } from "crypto";
 import { Database } from "bun:sqlite";
@@ -66,6 +67,7 @@ function redirectNotLogin(ctx) {
 
 app
   .use(auth)
+  .use(swagger())
   .get("/", async (ctx) => {
     const profiles = ctx.profiles("google");
 
