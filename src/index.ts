@@ -2,6 +2,12 @@ import { Elysia } from "elysia";
 import oauth2, { google } from "@bogeychan/elysia-oauth2";
 
 import { randomBytes } from "crypto";
+import { Database } from "bun:sqlite";
+
+const db = new Database(":memory:");
+
+db.run("CREATE TABLE IF NOT EXISTS users(username TEXT);");
+db.run("INSERT INTO users (username) VALUES ('john'), ('harry'), ('chad');");
 
 const globalState = randomBytes(8).toString("hex");
 let globalToken = null;
@@ -52,6 +58,12 @@ function userPage(user: {}, logout: string) {
   return new Response(html, { headers: { "Content-Type": "text/html" } });
 }
 
+function redirectNotLogin(ctx) {
+  console.log("user not logged in. redirecting");
+
+  ctx.set.redirect = "/";
+}
+
 app
   .use(auth)
   .get("/", async (ctx) => {
@@ -77,6 +89,30 @@ app
     </html>`;
 
     return new Response(html, { headers: { "Content-Type": "text/html" } });
+  })
+  .get("/users", async (ctx) => {
+    if (await ctx.authorized("google")) {
+      const data = db.query("SELECT * FROM users;").all();
+      return data;
+    }
+
+    return redirectNotLogin(ctx);
+  })
+  .get("/users/add/:name", async (ctx) => {
+    if (await ctx.authorized("google")) {
+      db.run("INSERT INTO users (username) VALUES (?);", [ctx.params.name]);
+      ctx.set.redirect = "/users";
+      return;
+    }
+    return redirectNotLogin(ctx);
+  })
+  .get("/users/remove/:name", async (ctx) => {
+    if (await ctx.authorized("google")) {
+      db.run("DELETE FROM users WHERE username=?", [ctx.params.name]);
+      ctx.set.redirect = "/users";
+      return;
+    }
+    return redirectNotLogin(ctx);
   })
   .listen(3000);
 
